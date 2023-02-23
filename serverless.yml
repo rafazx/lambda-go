@@ -1,0 +1,62 @@
+service: process-transfers
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: go1.x
+  region: us-east-1
+  stage: local
+
+  environment:
+    AWS_STAGE: local
+    DYNAMODB_TABLE: Transfers-${self:provider.stage}
+ 
+  iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+package:
+  individually: true
+
+custom:
+  localstack:
+      debug: true
+      edgePort: 4566
+      autostart: false
+      host: http://localhost
+      stages: [local]
+      lambda:
+        mountCode: true
+
+
+plugins:
+  - serverless-localstack
+
+functions:
+  process-transfers:
+    handler: handler
+    events:
+      - http:
+          path: /process/transfer
+          method: POST
+          cors: true
+
+
+resources:
+  Resources:
+    MerchantsDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
