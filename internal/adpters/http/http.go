@@ -1,7 +1,6 @@
 package http
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -19,11 +18,13 @@ func NewHttpAdapter(httpPort ports.HttpPort) *HttpAdapter {
 	}
 }
 
-func (h *HttpAdapter) HandleHttp(ctx context.Context, req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func (h *HttpAdapter) HandleHttp(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	accountId := req.QueryStringParameters["account_id"]
+
 	var tran *models.Transfer
 	json.Unmarshal([]byte(req.Body), &tran)
 
-	_, err := h.httpPort.CreateTransfer(tran)
+	err := h.httpPort.CreateTransfer(tran, accountId)
 
 	if err != nil {
 		return events.APIGatewayProxyResponse{

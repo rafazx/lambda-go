@@ -6,38 +6,42 @@ provider:
   name: aws
   runtime: go1.x
   region: us-east-1
-  stage: local
+  stage: dev
 
   environment:
-    AWS_STAGE: local
-    DYNAMODB_TABLE: Transfers-${self:provider.stage}
- 
+    AWS_STAGE: dev
+    DYNAMODB_TABLE_TRANSFER: Transfers-${self:provider.stage}
+    DYNAMODB_TABLE_ACCOUNT: Accounts-${self:provider.stage}
+
   iamRoleStatements:
       - Effect: Allow
         Action:
-          - dynamodb:Query
-        Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+          - dynamodb:PutItem
+          - dynamodb:GetItem
+        Resource: 
+          - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_TRANSFER}"
+          - "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_ACCOUNT}"
 
-package:
-  individually: true
+# package:
+#   individually: true
 
-custom:
-  localstack:
-      debug: true
-      edgePort: 4566
-      autostart: false
-      host: http://localhost
-      stages: [local]
-      lambda:
-        mountCode: true
+# custom:
+#   localstack:
+#       debug: true
+#       edgePort: 4566
+#       autostart: false
+#       host: http://localhost
+#       stages: [local]
+#       lambda:
+#         mountCode: true
 
 
-plugins:
-  - serverless-localstack
+# plugins:
+#   - serverless-localstack
 
 functions:
   process-transfers:
-    handler: handler
+    image: 537782080257.dkr.ecr.us-east-1.amazonaws.com/process-transfers:latest
     events:
       - http:
           path: /process/transfer
@@ -50,7 +54,20 @@ resources:
     MerchantsDynamoDbTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
-        TableName: ${self:provider.environment.DYNAMODB_TABLE}
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_TRANSFER}
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+    AccountsDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_ACCOUNT}
         AttributeDefinitions:
           - AttributeName: id
             AttributeType: S
